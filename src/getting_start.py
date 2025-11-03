@@ -1,13 +1,24 @@
 import dspy
 from typing import Literal
+import mlflow
+
 
 def init_dspy():
+    mlflow.dspy.autolog(
+        log_compiles=True,
+        log_evals=True,
+        log_traces_from_compile=True,
+    )
+    mlflow.set_tracking_uri("http://localhost:5000")
+    mlflow.set_experiment("DSPy-Optim")
+
     model_name = "ollama_chat/gpt-oss:20b"
     # model_name = "ollama_chat/llama3.2:1b"
     # model_name = "ollama_chat/llama3.2:3b"
     lm = dspy.LM(model_name, api_base="http://localhost:11434", api_key="")
     dspy.configure(lm=lm)
     return lm
+
 
 def task_math():
     math = dspy.ChainOfThought("question -> answer: float")
@@ -16,14 +27,16 @@ def task_math():
     print(f"{question=}")
     print(f"{response=}")
 
+
 def search_wikipedia(query: str) -> list[str]:
-    '''
+    """
     RAG のサーバーがうまく動作しない（2025/11/03）
-    '''
-    base_url="http://127.0.0.1:2017/search"
+    """
+    base_url = "http://127.0.0.1:2017/search"
     colbertv2_wiki17_abstracts = dspy.ColBERTv2(url=base_url)
-    results = colbertv2_wiki17_abstracts (query, k=3)
+    results = colbertv2_wiki17_abstracts(query, k=3)
     return [x["text"] for x in results]
+
 
 def task_rag():
     rag = dspy.ChainOfThought("context, question -> response")
@@ -40,6 +53,7 @@ class Classify(dspy.Signature):
     sentiment: Literal["positive", "negative", "neutral"] = dspy.OutputField()
     confidence: float = dspy.OutputField()
 
+
 def task_classify():
     classify = dspy.Predict(Classify)
 
@@ -53,17 +67,19 @@ def task_classify():
     print(f"{question=}")
     print(f"{response=}")
 
+
 class ExtractInfo(dspy.Signature):
     """Extract structured information from text."""
 
     text: str = dspy.InputField()
     title: str = dspy.OutputField()
     headings: list[str] = dspy.OutputField()
-    entities: list[dict[str, str]] = dspy.OutputField(desc="a list of entities and their metadata")
+    entities: list[dict[str, str]] = dspy.OutputField(
+        desc="a list of entities and their metadata"
+    )
+
 
 def task_extract():
-
-
     def print_response():
         print(f"{response.title=}")
         print(f"{response.headings=}")
@@ -71,13 +87,14 @@ def task_extract():
 
     module = dspy.Predict(ExtractInfo)
 
-
-    text = "Apple Inc. announced its latest iPhone 14 today." \
+    text = (
+        "Apple Inc. announced its latest iPhone 14 today."
         "The CEO, Tim Cook, highlighted its new features in a press release."
+    )
     response = module(text=text)
     print_response()
 
-    text = '''
+    text = """
     ## Transition to 'Next-Generation Standard' Enters Final Phase
 
     **Key Stakeholders Agree on "Blueprint" Details**
@@ -89,7 +106,7 @@ def task_extract():
     One expert noted, "This agreement is a significant step toward securing 'interoperability,' but the real test will be in the implementation phase."
 
     Authorities are expected to release a formal roadmap soon, but specific impacts on the market remain largely unclear at this time.
-    '''
+    """
     response = module(text=text)
     print_response()
 
@@ -99,14 +116,66 @@ def task_agent():
         print(f"evaluate_math(): {expression=}")
         result = dspy.PythonInterpreter({}).execute(expression)
         print(f"evaluate_math(): {result=}")
-        return resutl
+        return result
 
-    react = dspy.ReAct("question -> answer: float", tools=[evaluate_math, search_wikipedia])
+    react = dspy.ReAct(
+        "question -> answer: float", tools=[evaluate_math, search_wikipedia]
+    )
     # print(f"{react=}")
     question = "What is 9362158 divided by the year of birth of David Robert Mitchell"
     pred = react(question=question)
     print(f"{pred.answer=}")
     # print(f"{pred=}")
+
+
+# multi stage pipeline demo
+class Outline(dspy.Signature):
+    """Outline a thorough overview of a topic."""
+
+    topic: str = dspy.InputField()
+    title: str = dspy.OutputField()
+    sections: list[str] = dspy.OutputField()
+    section_subheadings: dict[str, list[str]] = dspy.OutputField(
+        desc="mapping from section headings to subheadings"
+    )
+
+
+class DraftSection(dspy.Signature):
+    """Draft a top-level section of an article."""
+
+    topic: str = dspy.InputField()
+    section_heading: str = dspy.InputField()
+    section_subheadings: list[str] = dspy.InputField()
+    content: str = dspy.OutputField(desc="markdown-formatted section")
+
+
+class DraftArticle(dspy.Module):
+    def __init__(self):
+        self.build_outline = dspy.ChainOfThought(Outline)
+        self.draft_section = dspy.ChainOfThought(DraftSection)
+
+    def forward(self, topic):
+        outline = self.build_outline(topic=topic)
+        sections = []
+        for heading, subheadings in outline.section_subheadings.items():
+            section, subheadings = (
+                f"## {heading}",
+                [f"### {subheading}" for subheading in subheadings],
+            )
+            section = self.draft_section(
+                topic=outline.title,
+                section_heading=section,
+                section_subheadings=subheadings,
+            )
+            sections.append(section.content)
+        return dspy.Prediction(title=outline.title, sections=sections)
+
+
+def task_multi_stage_pipeline():
+    draft_article = DraftArticle()
+    print(f"{draft_article=}")
+    article = draft_article(topic="世界ラリー選手権 2023")
+    print(f"{article=}")
 
 
 def main():
@@ -117,7 +186,9 @@ def main():
     # task_rag()
     # task_classify()
     # task_extract()
-    task_agent()
+    # task_agent()
+    task_multi_stage_pipeline()
+
 
 if __name__ == "__main__":
     main()
