@@ -136,7 +136,7 @@ class Outline(dspy.Signature):
     title: str = dspy.OutputField()
     sections: list[str] = dspy.OutputField()
     section_subheadings: dict[str, list[str]] = dspy.OutputField(
-        desc="mapping from section headings to subheadings"
+        desc="mapping from section headings to subheadings(日本語で出力)"
     )
 
 
@@ -146,7 +146,7 @@ class DraftSection(dspy.Signature):
     topic: str = dspy.InputField()
     section_heading: str = dspy.InputField()
     section_subheadings: list[str] = dspy.InputField()
-    content: str = dspy.OutputField(desc="markdown-formatted section")
+    content: str = dspy.OutputField(desc="markdown-formatted section(日本語で出力)")
 
 
 class DraftArticle(dspy.Module):
