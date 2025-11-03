@@ -12,6 +12,7 @@ wheels/
 # data
 /data/
 /mlflow.sqlite
+/mlartifacts/
 
 # stfo_colbert cache
 /stfo_indexes/
