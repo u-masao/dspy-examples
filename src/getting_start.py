@@ -179,14 +179,25 @@ def task_multi_stage_pipeline():
 
 
 def main():
-    lm = init_dspy()
+    init_dspy()
     print(f"{dspy=}")
-    print(f"{lm=}")
-    # task_math()
-    # task_rag()
-    # task_classify()
-    # task_extract()
-    # task_agent()
+
+    print("==== math")
+    task_math()
+
+    print("==== rag")
+    task_rag()
+
+    print("==== classify")
+    task_classify()
+
+    print("==== extract")
+    task_extract()
+
+    print("==== agent")
+    task_agent()
+
+    print("==== multi stage pipeline")
     task_multi_stage_pipeline()
 
 
