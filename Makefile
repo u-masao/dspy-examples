@@ -1,3 +1,8 @@
+# lint
+lint:
+	uv run ruff format src
+	uv run ruff check --fix src
+
 # setup ollama
 setup_ollama:
 	curl -fsSL https://ollama.ai/install.sh | sh
@@ -21,3 +26,7 @@ run_search_engine:
 # test search enging
 test_search:
 	curl "http://127.0.0.1:2017/search?query=David%20Robert%20Mitchell&k=3"
+
+# setup mlflow server
+run_mlflow:
+	uv run mlflow server --backend-store-uri sqlite:///mlflow.sqlite
